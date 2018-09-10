@@ -1,0 +1,11 @@
+#!/bin/sh
+#
+# Turn off useless password policies in a Samba Active Directory Domain,
+# because these are stupid policies to absently make default.
+
+if [ `id -u` != 0 ]; then
+  SUDO=sudo
+fi
+
+$SUDO samba-tool domain passwordsettings set \
+  --complexity=off --history-length=0 --min-pwd-age=0 --max-pwd-age=0
