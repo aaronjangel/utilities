@@ -1,0 +1,54 @@
+#!/bin/bash
+#
+# Cron script to update addresses for several hosts using Hurricane Electric's
+# DDNS service. This allows centralization of updates by querying a local
+# database (e.g., Bonjour or Avahi) instead of installing software on each
+# node in the local network. I'll document this better at some point.
+
+date +'Beginning update at %r on %D.'
+echo
+
+URL="https://dyn.dns.he.net/nic/update"
+
+for conf in *; do
+  [ -f $conf/disable ] && continue
+  [ ! -f $conf/host  ] && continue
+  [ ! -f $conf/dname ] && continue
+  [ ! -f $conf/netrc ] && continue
+  [ ! -f $conf/type  ] && continue
+
+  HOST=$(cat $conf/host)
+  DNAME=$(cat $conf/dname)
+  NETRC=$conf/netrc
+  TYPE=$(cat $conf/type)
+
+  case $TYPE in
+  A)
+    CURLOPTS="-4 --netrc-file $NETRC"
+    ENTDB=ahostsv4
+    ;;
+  AAAA)
+    CURLOPTS="-6 --netrc-file $NETRC"
+    ENTDB=ahostsv6
+    ;;
+  *)
+    echo $conf type $TYPE unknown
+    continue
+    ;;
+  esac
+
+  if [ ${HOST}x != autox ]; then
+    ADDR=$(dig +short $HOST $TYPE | grep 2607 | head -1)
+    #ADDR=$(getent $ENTDB $HOST | head -1 | cut -d' ' -f1)
+    DATA="-d hostname=$DNAME -d myip=$ADDR"
+  else
+    DATA="-d hostname=$DNAME"
+  fi
+
+  echo -n \    $conf\ 
+  curl -s $CURLOPTS $URL $DATA
+  echo
+done
+
+echo
+echo "Update(s) complete."
